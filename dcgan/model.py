@@ -10,26 +10,26 @@ class Generator(nn.Module):
     self.num_gpus = opt.num_gpus
 
     self.main = nn.Sequential(
-      # input is Z, going into a convolution
+      # input: Z
       nn.ConvTranspose2d(opt.nz, opt.ngf*8, 4, 1, 0, bias=False),
       nn.BatchNorm2d(opt.ngf*8),
-      nn.ReLU(True),
-      # state size. ngf*8 x 4 x 4
+      nn.ReLU(inplace=True),
+      # state dim: ngf*8 x 4 x 4
       nn.ConvTranspose2d(opt.ngf*8, opt.ngf*4, 4, 2, 1, bias=False),
       nn.BatchNorm2d(opt.ngf*4),
-      nn.ReLU(True),
-      # state size. ngf*4 x 8 x 8
+      nn.ReLU(inplace=True),
+      # state dim: ngf*4 x 8 x 8
       nn.ConvTranspose2d(opt.ngf*4, opt.ngf*2, 4, 2, 1, bias=False),
       nn.BatchNorm2d(opt.ngf*2),
-      nn.ReLU(True),
-      # state size. ngf*2 x 16 x 16
+      nn.ReLU(inplace=True),
+      # state dim: ngf*2 x 16 x 16
       nn.ConvTranspose2d(opt.ngf*2, opt.ngf, 4, 2, 1, bias=False),
       nn.BatchNorm2d(opt.ngf),
-      nn.ReLU(True),
-      # state size. ngf x 32 x 32
-      nn.ConvTranspose2d(opt.ngf, opt.nc, 4, 2, 1, bias=False),
+      nn.ReLU(inplace=True),
+      # state dim: ngf x 32 x 32
+      nn.ConvTranspose2d(opt.ngf, opt.in_channels, 4, 2, 1, bias=False),
       nn.Tanh()
-      # state size. nc x 64 x 64
+      # state dim: in_channels x 64 x 64
     )
 
     for m in self.modules():
@@ -52,22 +52,22 @@ class Discriminator(nn.Module):
     self.num_gpus = opt.num_gpus
 
     self.main = nn.Sequential(
-      # input is nc x 64 x 64
-      nn.Conv2d(opt.nc, opt.ndf, 4, 2, 1, bias=False),
+      # input dim: in_channels x 64 x 64
+      nn.Conv2d(opt.in_channels, opt.ndf, 4, 2, 1, bias=False),
       nn.LeakyReLU(0.2, inplace=True),
-      # state size. ndf x 32 x 32
+      # state dim: ndf x 32 x 32
       nn.Conv2d(opt.ndf, opt.ndf*2, 4, 2, 1, bias=False),
       nn.BatchNorm2d(opt.ndf*2),
       nn.LeakyReLU(0.2, inplace=True),
-      # state size. ndf*2 x 16 x 16
+      # state dim: ndf*2 x 16 x 16
       nn.Conv2d(opt.ndf*2, opt.ndf*4, 4, 2, 1, bias=False),
       nn.BatchNorm2d(opt.ndf*4),
       nn.LeakyReLU(0.2, inplace=True),
-      # state size. ndf*4 x 8 x 8
+      # state dim: ndf*4 x 8 x 8
       nn.Conv2d(opt.ndf*4, opt.ndf*8, 4, 2, 1, bias=False),
       nn.BatchNorm2d(opt.ndf*8),
       nn.LeakyReLU(0.2, inplace=True),
-      # state size. ndf*8 x 4 x 4
+      # state dim: ndf*8 x 4 x 4
       nn.Conv2d(opt.ndf*8, 1, 4, 1, 0, bias=False),
       nn.Sigmoid()
     )
