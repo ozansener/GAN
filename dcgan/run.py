@@ -1,15 +1,16 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 import argparse
-from model import Generator, Discriminator
-from utils import *
-import torch.nn as nn
+import os
 import torch.backends.cudnn as cudnn
+import torch.nn as nn
 import torch.optim as optim
 import torch.utils.data
 import torchvision.datasets as dset
 import torchvision.transforms as transforms
 import torchvision.utils
 from torch.autograd import Variable
+from dcgan import model
+from utils import logging
 
 
 parser = argparse.ArgumentParser()
@@ -31,7 +32,7 @@ parser.add_argument('--print_every', type=int, default=50)
 
 opt = parser.parse_args()
 os.makedirs(opt.ckpt_path, exist_ok=True)
-logger = get_logger(opt.ckpt_path)
+logger = logging.get_logger(opt.ckpt_path)
 opt.seed = 1
 torch.manual_seed(opt.seed)
 torch.cuda.manual_seed(opt.seed)
@@ -43,8 +44,8 @@ transform = transforms.Compose([transforms.Scale(opt.image_size),
 dataset = dset.CIFAR10(root=opt.dataset_path, train=True, download=False, transform=transform)
 data_loader = torch.utils.data.DataLoader(dataset, batch_size=opt.batch_size, shuffle=True, num_workers=opt.num_workers)
 
-net_g = Generator(opt).cuda()
-net_d = Discriminator(opt).cuda()
+net_g = model.Generator(opt).cuda()
+net_d = model.Discriminator(opt).cuda()
 
 if opt.load_ckpt:
   net_g.load_state_dict(torch.load(os.path.join(opt.ckpt_path, 'net_g.pth')))
@@ -54,19 +55,19 @@ criterion = nn.BCELoss().cuda()
 optimizer_g = optim.Adam(net_g.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
 optimizer_d = optim.Adam(net_d.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
 
-fixed_noise = Variable(torch.zeros(opt.batch_size, opt.nz, 1, 1).type(torch.cuda.FloatTensor).normal_(0, 1))
+fixed_noise = Variable(torch.randn(opt.batch_size, opt.nz, 1, 1).type(torch.cuda.FloatTensor))
 labels_real = Variable(torch.zeros(opt.batch_size).fill_(1).type(torch.cuda.FloatTensor))
 labels_fake = Variable(torch.zeros(opt.batch_size).fill_(0).type(torch.cuda.FloatTensor))
 
 for epoch in range(opt.num_epochs):
-  losses_g = AverageMeter()
-  losses_d = AverageMeter()
+  losses_g = logging.AverageMeter()
+  losses_d = logging.AverageMeter()
   images, batch_size = None, None
 
   for step, (images, _) in enumerate(data_loader, 0):
-    batch_size = images.size(0)
+    batch_size = images.size(0)  # batch_size <= opt.batch_size
     images_real = Variable(images.type(torch.cuda.FloatTensor))
-    noise = Variable(torch.zeros(batch_size, opt.nz, 1, 1).normal_(0, 1).type(torch.cuda.FloatTensor))
+    noise = Variable(torch.randn(batch_size, opt.nz, 1, 1).type(torch.cuda.FloatTensor))
 
     ''' (1) Update D network: maximize log(D(x)) + log(1 - D(G(z))) '''
     net_d.zero_grad()
