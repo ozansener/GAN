@@ -10,7 +10,7 @@ class Generator(nn.Module):
     self.num_gpus = opt.num_gpus
 
     self.inference = nn.Sequential(
-      # input: z
+      # input dim: z_dim x 1 x 1
       nn.ConvTranspose2d(opt.z_dim, ngf*8, 4, 1, 0, bias=False),
       nn.BatchNorm2d(ngf*8),
       nn.ReLU(inplace=True),
@@ -29,7 +29,7 @@ class Generator(nn.Module):
       # state dim: ngf x 32 x 32
       nn.ConvTranspose2d(ngf, opt.in_channels, 4, 2, 1, bias=False),
       nn.Tanh()
-      # state dim: in_channels x 64 x 64
+      # output dim: in_channels x 64 x 64
     )
 
     for m in self.modules():
@@ -70,6 +70,7 @@ class Discriminator(nn.Module):
       # state dim: ndf*8 x 4 x 4
       nn.Conv2d(ndf*8, 1, 4, 1, 0, bias=False),
       nn.Sigmoid()
+      # output dim: 1 x 1 x 1
     )
 
     for m in self.modules():
@@ -84,4 +85,5 @@ class Discriminator(nn.Module):
     if isinstance(x.data, torch.cuda.FloatTensor) and self.num_gpus > 1:
       gpu_ids = range(self.num_gpus)
     output = nn.parallel.data_parallel(self.inference, x, gpu_ids)
+    print(output.size())
     return output.view(-1, 1)

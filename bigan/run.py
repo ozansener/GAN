@@ -66,9 +66,6 @@ for epoch in range(opt.num_epochs):
 
   for step, (images, _) in enumerate(data_loader, 0):
     batch_size = images.size(0)  # batch_size <= opt.batch_size
-    D.zero_grad()
-    P.zero_grad()
-    Q.zero_grad()
 
     ''' P network '''
     z_p = Variable(torch.randn(batch_size, opt.z_dim).type(torch.cuda.FloatTensor))
@@ -82,15 +79,22 @@ for epoch in range(opt.num_epochs):
     output_p = D(x_p, z_p)
     output_q = D(x_q, z_q)
 
-    loss_d_p = criterion(output_p, labels_p[:batch_size])
-    loss_d_q = criterion(output_q, labels_q[:batch_size])
-    loss_d = loss_d_p+loss_d_q
+    loss_dp = criterion(output_p, labels_p[:batch_size])
+    loss_dq = criterion(output_q, labels_q[:batch_size])
+    loss_d = loss_dp+loss_dq
     loss_p = criterion(output_p, labels_q[:batch_size])
     loss_q = criterion(output_q, labels_p[:batch_size])
     loss_pq = loss_p+loss_q
 
+    D.zero_grad()
+    P.zero_grad()
+    Q.zero_grad()
     loss_d.backward()
     optimizer_d.step()
+
+    D.zero_grad()
+    P.zero_grad()
+    Q.zero_grad()
     loss_pq.backward()
     optimizer_pq.step()
 
