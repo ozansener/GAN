@@ -53,7 +53,7 @@ criterion = nn.BCELoss().cuda()
 optimizer_d = optim.Adam(D.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
 optimizer_g = optim.Adam(G.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
 
-fixed_z = Variable(torch.randn(opt.batch_size, opt.z_dim).type(torch.cuda.FloatTensor))
+fixed_z = Variable(torch.randn(opt.batch_size, opt.z_dim, 1, 1).type(torch.cuda.FloatTensor))
 labels_real = Variable(torch.zeros(opt.batch_size).fill_(1).type(torch.cuda.FloatTensor))
 labels_fake = Variable(torch.zeros(opt.batch_size).fill_(0).type(torch.cuda.FloatTensor))
 
@@ -75,7 +75,7 @@ for epoch in range(opt.num_epochs):
     loss_d_real.backward()
     D_x = output.data.mean()
     # train with fake
-    z = Variable(torch.randn(batch_size, opt.z_dim).type(torch.cuda.FloatTensor))
+    z = Variable(torch.randn(batch_size, opt.z_dim, 1, 1).type(torch.cuda.FloatTensor))
     x_fake = G(z)
     output = D(x_fake.detach())
     loss_d_fake = criterion(output, labels_fake[:batch_size])

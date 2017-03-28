@@ -1,5 +1,6 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 import argparse
+import itertools
 import os
 import torch.backends.cudnn as cudnn
 import torch.nn as nn
@@ -17,9 +18,9 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--dataset_path', type=str, default='/home/alan/datable/cifar10')
 parser.add_argument('--num_workers', type=int, default=20)
 parser.add_argument('--batch_size', type=int, default=64)
-parser.add_argument('--image_size', type=int, default=64)
+parser.add_argument('--image_size', type=int, default=32)
 parser.add_argument('--in_channels', type=int, default=3)
-parser.add_argument('--z_dim', type=int, default=100)
+parser.add_argument('--z_dim', type=int, default=256)
 parser.add_argument('--num_epochs', type=int, default=100)
 parser.add_argument('--lr', type=float, default=2e-4)
 parser.add_argument('--beta1', type=float, default=0.5)
@@ -42,9 +43,9 @@ transform = transforms.Compose([transforms.Scale(opt.image_size),
 dataset = dset.CIFAR10(root=opt.dataset_path, train=True, download=False, transform=transform)
 data_loader = torch.utils.data.DataLoader(dataset, batch_size=opt.batch_size, shuffle=True, num_workers=opt.num_workers)
 
-D = model.Discriminator(opt).cuda()  # discriminator net D(x, z)
-P = model.P(opt).cuda()  # generator net (decoder) P(x|z)
-Q = model.Q(opt).cuda()  # inference net (encoder) Q(z|x)
+D = torch.nn.DataParallel(model.Discriminator(opt).cuda())  # discriminator net D(x, z)
+P = torch.nn.DataParallel(model.P(opt).cuda())  # generator net (decoder) P(x|z)
+Q = torch.nn.DataParallel(model.Q(opt).cuda())  # inference net (encoder) Q(z|x)
 
 if opt.load_ckpt:
   D.load_state_dict(torch.load(os.path.join(opt.ckpt_path, 'D.pth')))
@@ -53,7 +54,7 @@ if opt.load_ckpt:
 
 criterion = nn.BCELoss().cuda()
 optimizer_d = optim.Adam(D.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
-optimizer_pq = optim.Adam(P.parameters()+Q.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
+optimizer_pq = optim.Adam(itertools.chain(P.parameters(), Q.parameters()), lr=opt.lr, betas=(opt.beta1, 0.999))
 
 fixed_z = Variable(torch.randn(opt.batch_size, opt.z_dim).type(torch.cuda.FloatTensor))
 labels_p = Variable(torch.zeros(opt.batch_size).fill_(0).type(torch.cuda.FloatTensor))
@@ -68,7 +69,7 @@ for epoch in range(opt.num_epochs):
     batch_size = images.size(0)  # batch_size <= opt.batch_size
 
     ''' P network '''
-    z_p = Variable(torch.randn(batch_size, opt.z_dim).type(torch.cuda.FloatTensor))
+    z_p = Variable(torch.randn(batch_size, opt.z_dim, 1, 1).type(torch.cuda.FloatTensor))
     x_p = P(z_p)
 
     ''' Q network '''

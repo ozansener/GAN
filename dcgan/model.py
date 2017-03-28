@@ -43,7 +43,7 @@ class Generator(nn.Module):
     gpu_ids = None
     if isinstance(z.data, torch.cuda.FloatTensor) and self.num_gpus > 1:
       gpu_ids = range(self.num_gpus)
-    return nn.parallel.data_parallel(self.inference, z.unsqueeze(2).unsqueeze(3), gpu_ids)
+    return nn.parallel.data_parallel(self.inference, z, gpu_ids)
 
 
 class Discriminator(nn.Module):

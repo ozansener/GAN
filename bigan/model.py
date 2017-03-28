@@ -5,7 +5,6 @@ import torch.nn as nn
 class P(nn.Module):
   def __init__(self, opt):
     super(P, self).__init__()
-    self.num_gpus = opt.num_gpus
 
     self.inference = nn.Sequential(
       # input dim: z_dim x 1 x 1
@@ -36,23 +35,19 @@ class P(nn.Module):
 
     # TODO: fix init
     for m in self.modules():
-      if isinstance(m, nn.Conv2d):
+      if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
         m.weight.data.normal_(0.0, 0.02)
       elif isinstance(m, nn.BatchNorm2d):
         m.weight.data.normal_(1.0, 0.02)
         m.bias.data.zero_()
 
   def forward(self, z):
-    gpu_ids = None
-    if isinstance(z.data, torch.cuda.FloatTensor) and self.num_gpus > 1:
-      gpu_ids = range(self.num_gpus)
-    return nn.parallel.data_parallel(self.inference, z, gpu_ids)
+    return self.inference(z)
 
 
 class Q(nn.Module):
   def __init__(self, opt):
     super(Q, self).__init__()
-    self.num_gpus = opt.num_gpus
 
     self.inference = nn.Sequential(
       # input dim: in_channels x 32 x 32
@@ -80,8 +75,8 @@ class Q(nn.Module):
       nn.BatchNorm2d(512),
       nn.LeakyReLU(0.01, inplace=True),
       # state dim: 512 x 1 x 1
-      nn.Conv2d(512, 2*opt.z_dim, 1, stride=1, bias=False)
-      # output dim: 2*opt.z_dim x 1 x 1
+      nn.Conv2d(512, opt.z_dim, 1, stride=1, bias=False)
+      # output dim: opt.z_dim x 1 x 1
     )
 
     # TODO: fix init
@@ -93,16 +88,12 @@ class Q(nn.Module):
         m.bias.data.zero_()
 
   def forward(self, x):
-    gpu_ids = None
-    if isinstance(x.data, torch.cuda.FloatTensor) and self.num_gpus > 1:
-      gpu_ids = range(self.num_gpus)
-    return nn.parallel.data_parallel(self.inference, x, gpu_ids)
+    return self.inference(x)
 
 
 class Discriminator(nn.Module):
   def __init__(self, opt):
     super(Discriminator, self).__init__()
-    self.num_gpus = opt.num_gpus
 
     self.inference_x = nn.Sequential(
       # input dim: in_channels x 32 x 32 (no bn)
@@ -138,8 +129,8 @@ class Discriminator(nn.Module):
     )
 
     self.inference_joint = nn.Sequential(
-      # input dim: 1024 x 1 x 1 (no bn)
-      nn.Conv2d(1024, 1024, 1, stride=1, bias=False),
+      # input dim: z_dim*2 x 1 x 1 (no bn)
+      nn.Conv2d(opt.z_dim*2, 1024, 1, stride=1, bias=False),
       nn.LeakyReLU(0.01, inplace=True),
       # state dim: 1024 x 1 x 1 (no bn)
       nn.Conv2d(1024, 1024, 1, stride=1, bias=False),
@@ -149,13 +140,15 @@ class Discriminator(nn.Module):
       # output dim: 1 x 1 x 1
     )
 
+    # TODO: fix init
+    for m in self.modules():
+      if isinstance(m, nn.Conv2d):
+        m.weight.data.normal_(0.0, 0.02)
+      elif isinstance(m, nn.BatchNorm2d):
+        m.weight.data.normal_(1.0, 0.02)
+        m.bias.data.zero_()
+
   def forward(self, x, z):
-    gpu_ids = None
-    if isinstance(x.data, torch.cuda.FloatTensor) and self.num_gpus > 1:
-      gpu_ids = range(self.num_gpus)
-
-    def inference(x_, z_):
-      return self.inference_joint(torch.cat((self.inference_x(x_), self.inference_z(z_)), 0))
-
-    output = nn.parallel.data_parallel(inference, (x, z), gpu_ids)
+    output = torch.cat((self.inference_x(x), self.inference_z(z)), 0)
+    output = self.inference_joint(output)
     return output.view(-1, 1)
