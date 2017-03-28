@@ -2,8 +2,8 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import argparse
 import itertools
 import os
+import shutil
 import torch.backends.cudnn as cudnn
-import torch.nn as nn
 import torch.optim as optim
 import torch.utils.data
 import torchvision.datasets as dset
@@ -22,22 +22,29 @@ parser.add_argument('--batch_size', type=int, default=128)
 parser.add_argument('--image_size', type=int, default=32)
 parser.add_argument('--in_channels', type=int, default=3)
 parser.add_argument('--z_dim', type=int, default=256)
-parser.add_argument('--num_epochs', type=int, default=100)
-parser.add_argument('--lr', type=float, default=2e-4)
+parser.add_argument('--num_epochs', type=int, default=50)
+parser.add_argument('--lr_adam', type=float, default=1e-4)
+parser.add_argument('--lr_rmsprop', type=float, default=5e-5)
 parser.add_argument('--beta1', type=float, default=0.5)
+parser.add_argument('--clamp', type=float, default=1e-2)
+parser.add_argument('--wasserstein', type=bool, default=True)
 parser.add_argument('--num_gpus', type=int, default=2)
+parser.add_argument('--clean_ckpt', type=bool, default=True)
 parser.add_argument('--load_ckpt', type=bool, default=False)
 parser.add_argument('--ckpt_path', type=str, default='/home/alan/datable/cifar10/ckpt_alan')
 # parser.add_argument('--ckpt_path', type=str, default='/vision/group/cifar10/ckpt_alan')
 parser.add_argument('--print_every', type=int, default=50)
 
 opt = parser.parse_args()
+if opt.clean_ckpt:
+  shutil.rmtree(opt.ckpt_path)
 os.makedirs(opt.ckpt_path, exist_ok=True)
 logger = logging.Logger(opt.ckpt_path)
 opt.seed = 1
 torch.manual_seed(opt.seed)
 torch.cuda.manual_seed(opt.seed)
 cudnn.benchmark = True
+EPS = 1e-12
 
 transform = transforms.Compose([transforms.Scale(opt.image_size),
                                 transforms.ToTensor(),
@@ -54,13 +61,14 @@ if opt.load_ckpt:
   P.load_state_dict(torch.load(os.path.join(opt.ckpt_path, 'P.pth')))
   Q.load_state_dict(torch.load(os.path.join(opt.ckpt_path, 'Q.pth')))
 
-criterion = nn.BCELoss().cuda()
-optimizer_d = optim.Adam(D.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
-optimizer_pq = optim.Adam(itertools.chain(P.parameters(), Q.parameters()), lr=opt.lr, betas=(opt.beta1, 0.999))
+if opt.wasserstein:
+  optimizer_d = optim.RMSprop(D.parameters(), lr=opt.lr_rmsprop)
+  optimizer_pq = optim.RMSprop(itertools.chain(P.parameters(), Q.parameters()), lr=opt.lr_rmsprop)
+else:
+  optimizer_d = optim.Adam(D.parameters(), lr=opt.lr_adam, betas=(opt.beta1, 0.999))
+  optimizer_pq = optim.Adam(itertools.chain(P.parameters(), Q.parameters()), lr=opt.lr_adam, betas=(opt.beta1, 0.999))
 
 fixed_z = Variable(torch.randn(opt.batch_size, opt.z_dim, 1, 1).type(torch.cuda.FloatTensor))
-labels_p = Variable(torch.zeros(opt.batch_size).fill_(0).type(torch.cuda.FloatTensor))
-labels_q = Variable(torch.zeros(opt.batch_size).fill_(1).type(torch.cuda.FloatTensor))
 
 for epoch in range(opt.num_epochs):
   stats = logging.Statistics(['loss_d', 'loss_pq'])
@@ -84,17 +92,21 @@ for epoch in range(opt.num_epochs):
     output_q = D(x_q, z_q)
 
     # loss & back propagation
-    loss_dp = criterion(output_p, labels_p[:batch_size])
-    loss_dq = criterion(output_q, labels_q[:batch_size])
-    loss_d = loss_dp+loss_dq
-    loss_p = criterion(output_p, labels_q[:batch_size])
-    loss_q = criterion(output_q, labels_p[:batch_size])
-    loss_pq = loss_p+loss_q
+    if opt.wasserstein:
+      loss_d = -torch.mean(output_q)+torch.mean(output_p)
+      loss_pq = -torch.mean(output_p)
+    else:
+      loss_d = -torch.mean(torch.log(output_q+EPS)+torch.log(1-output_p+EPS))
+      loss_pq = -torch.mean(torch.log(output_p+EPS)+torch.log(1-output_q+EPS))
 
     loss_d.backward(retain_variables=True)
     optimizer_d.step()
     loss_pq.backward()
     optimizer_pq.step()
+
+    if opt.wasserstein:
+      for p in D.parameters():
+        p.data.clamp_(-opt.clamp, opt.clamp)
 
     # logging
     info = stats.update(batch_size, loss_d=loss_d.data[0], loss_pq=loss_pq.data[0])

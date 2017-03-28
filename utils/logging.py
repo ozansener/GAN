@@ -37,7 +37,7 @@ class Statistics(object):
   def summary(self):
     info = ''
     for name in self.names:
-      info += 'avg {}={loss:.4f}, '.format(name, loss=self.meters[name].avg)
+      info += 'avg {key}={loss:.4f}, '.format(key=name, loss=self.meters[name].avg)
     return info[:-2]
 
 

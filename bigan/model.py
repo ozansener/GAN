@@ -37,7 +37,6 @@ class P(nn.Module):
     self.reset_parameters()
 
   def reset_parameters(self):
-    # TODO: fix init
     for m in self.modules():
       if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
         m.weight.data.normal_(0.0, 0.02)
@@ -161,24 +160,17 @@ class Discriminator(nn.Module):
       # state dim: 1024 x 1 x 1 (no bn)
       nn.Conv2d(1024, 1, 1, stride=1, bias=False),
       nn.Dropout2d(p=0.2),
-      nn.Sigmoid()
       # output dim: 1 x 1 x 1
     )
+    if not opt.wasserstein:
+      self.inference_joint.add_module('8', nn.Sigmoid())
 
     self.reset_parameters()
 
   def reset_parameters(self):
-    # TODO: fix init
     for m in self.modules():
       if isinstance(m, nn.Conv2d):
         m.weight.data.normal_(0.0, 0.02)
-      elif isinstance(m, nn.BatchNorm2d):
-        m.weight.data.normal_(1.0, 0.02)
-        m.bias.data.zero_()
-
-    for m in self.inference_z:
-      if isinstance(m, nn.Conv2d):
-        m.weight.data.normal_(0.0, 0.5)
       elif isinstance(m, nn.BatchNorm2d):
         m.weight.data.normal_(1.0, 0.02)
         m.bias.data.zero_()
