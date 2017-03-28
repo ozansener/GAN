@@ -26,7 +26,7 @@ parser.add_argument('--lr', type=float, default=2e-4)
 parser.add_argument('--beta1', type=float, default=0.5)
 parser.add_argument('--num_gpus', type=int, default=2)
 parser.add_argument('--load_ckpt', type=bool, default=False)
-parser.add_argument('--ckpt_path', type=str, default='/home/alan/datable/cifar10/ckpt')
+parser.add_argument('--ckpt_path', type=str, default='/home/alan/datable/cifar10/ckpt_alan')
 parser.add_argument('--print_every', type=int, default=50)
 
 opt = parser.parse_args()
@@ -61,8 +61,7 @@ labels_p = Variable(torch.zeros(opt.batch_size).fill_(0).type(torch.cuda.FloatTe
 labels_q = Variable(torch.zeros(opt.batch_size).fill_(1).type(torch.cuda.FloatTensor))
 
 for epoch in range(opt.num_epochs):
-  losses_d = logging.AverageMeter()
-  losses_pq = logging.AverageMeter()
+  stats = logging.Statistics(['loss_d', 'loss_pq'])
   images, batch_size = None, None
 
   for step, (images, _) in enumerate(data_loader, 0):
@@ -96,14 +95,10 @@ for epoch in range(opt.num_epochs):
     loss_pq.backward()
     optimizer_pq.step()
 
-    losses_d.update(loss_d.data[0], batch_size)
-    losses_pq.update(loss_pq.data[0], batch_size)
-
+    info = stats.update(batch_size, loss_d=loss_d.data[0], loss_pq=loss_pq.data[0])
     if opt.print_every > 0 and step%opt.print_every == 0:
-      logger.info('epoch {}/{}, step {}/{}: '
-                  'loss_d={loss_d.val:.4f}, avg loss_d={loss_d.avg:.4f}, '
-                  'loss_pq={loss_pq.val:.4f}, avg loss_pq={loss_pq.avg:.4f}'
-                  .format(epoch, opt.num_epochs, step, len(data_loader), loss_d=losses_d, loss_pq=losses_pq))
+      logger.info('epoch {}/{}, step {}/{}: {}'
+                  .format(epoch, opt.num_epochs, step, len(data_loader), info))
 
     if step == 0:
       torchvision.utils.save_image(images, '%s/real_samples.png'%opt.ckpt_path)

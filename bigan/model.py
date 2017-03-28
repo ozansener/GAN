@@ -30,10 +30,13 @@ class P(nn.Module):
       nn.LeakyReLU(0.01, inplace=True),
       # state dim: 32 x 32 x 32
       nn.Conv2d(32, opt.in_channels, 1, stride=1, bias=False),
-      nn.Sigmoid()
+      nn.Tanh()
       # output dim: in_channels x 32 x 32
     )
 
+    self.reset_parameters()
+
+  def reset_parameters(self):
     # TODO: fix init
     for m in self.modules():
       if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
@@ -84,7 +87,9 @@ class Q(nn.Module):
       # output dim: opt.z_dim x 1 x 1
     )
 
-    # TODO: fix init
+    self.reset_parameters()
+
+  def reset_parameters(self):
     for m in self.modules():
       if isinstance(m, nn.Conv2d):
         m.weight.data.normal_(0.0, 0.02)
@@ -102,6 +107,7 @@ class Q(nn.Module):
 class Discriminator(nn.Module):
   def __init__(self, opt):
     super(Discriminator, self).__init__()
+    self.num_gpus = opt.num_gpus
 
     self.inference_x = nn.Sequential(
       # input dim: in_channels x 32 x 32 (no bn)
@@ -145,10 +151,13 @@ class Discriminator(nn.Module):
       nn.LeakyReLU(0.01, inplace=True),
       # state dim: 1024 x 1 x 1 (no bn)
       nn.Conv2d(1024, 1, 1, stride=1, bias=False),
-      # output dim: 1 x 1 x 1
       nn.Sigmoid()
+      # output dim: 1 x 1 x 1
     )
 
+    self.reset_parameters()
+
+  def reset_parameters(self):
     # TODO: fix init
     for m in self.modules():
       if isinstance(m, nn.Conv2d):
@@ -157,7 +166,18 @@ class Discriminator(nn.Module):
         m.weight.data.normal_(1.0, 0.02)
         m.bias.data.zero_()
 
+    for m in self.inference_z:
+      if isinstance(m, nn.Conv2d):
+        m.weight.data.normal_(0.0, 0.5)
+      elif isinstance(m, nn.BatchNorm2d):
+        m.weight.data.normal_(1.0, 0.02)
+        m.bias.data.zero_()
+
   def forward(self, x, z):
-    # TODO: data parallel
-    output = torch.cat((self.inference_x(x), self.inference_z(z)), 1)
-    return self.inference_joint(output)
+    gpu_ids = None
+    if isinstance(x.data, torch.cuda.FloatTensor) and self.num_gpus > 1:
+      gpu_ids = range(self.num_gpus)
+    output_x = nn.parallel.data_parallel(self.inference_x, x, gpu_ids)
+    output_z = nn.parallel.data_parallel(self.inference_z, z, gpu_ids)
+    output = nn.parallel.data_parallel(self.inference_joint, torch.cat((output_x, output_z), 1), gpu_ids)
+    return output

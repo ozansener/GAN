@@ -3,15 +3,11 @@ import os
 import sys
 
 
-# noinspection PyAttributeOutsideInit
 class AverageMeter(object):
   """
   Computes and stores the average and current value
   """
   def __init__(self):
-    self.reset()
-
-  def reset(self):
     self.val = 0
     self.avg = 0
     self.sum = 0
@@ -22,6 +18,22 @@ class AverageMeter(object):
     self.sum += val*n
     self.count += n
     self.avg = self.sum/self.count
+
+
+class Statistics(object):
+  def __init__(self, names):
+    self.meters = {}
+    for name in names:
+      self.meters.update({name: AverageMeter()})
+
+  def update(self, n, **kwargs):
+    info = ''
+    for key in kwargs:
+      print(key)
+      self.meters[key].update(kwargs[key], n)
+      info += '{key}={loss.val:.4f}, avg {key}={loss.avg:.4f}, '.format(key=key, loss=self.meters[key])
+    assert False
+    return info[:-2]
 
 
 def get_logger(path):
