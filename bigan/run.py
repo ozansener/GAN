@@ -43,9 +43,9 @@ transform = transforms.Compose([transforms.Scale(opt.image_size),
 dataset = dset.CIFAR10(root=opt.dataset_path, train=True, download=False, transform=transform)
 data_loader = torch.utils.data.DataLoader(dataset, batch_size=opt.batch_size, shuffle=True, num_workers=opt.num_workers)
 
-D = torch.nn.DataParallel(model.Discriminator(opt).cuda())  # discriminator net D(x, z)
-P = torch.nn.DataParallel(model.P(opt).cuda())  # generator net (decoder) P(x|z)
-Q = torch.nn.DataParallel(model.Q(opt).cuda())  # inference net (encoder) Q(z|x)
+D = model.Discriminator(opt).cuda()  # discriminator net D(x, z)
+P = model.P(opt).cuda()  # generator net (decoder) P(x|z)
+Q = model.Q(opt).cuda()  # inference net (encoder) Q(z|x)
 
 if opt.load_ckpt:
   D.load_state_dict(torch.load(os.path.join(opt.ckpt_path, 'D.pth')))
@@ -56,7 +56,7 @@ criterion = nn.BCELoss().cuda()
 optimizer_d = optim.Adam(D.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
 optimizer_pq = optim.Adam(itertools.chain(P.parameters(), Q.parameters()), lr=opt.lr, betas=(opt.beta1, 0.999))
 
-fixed_z = Variable(torch.randn(opt.batch_size, opt.z_dim).type(torch.cuda.FloatTensor))
+fixed_z = Variable(torch.randn(opt.batch_size, opt.z_dim, 1, 1).type(torch.cuda.FloatTensor))
 labels_p = Variable(torch.zeros(opt.batch_size).fill_(0).type(torch.cuda.FloatTensor))
 labels_q = Variable(torch.zeros(opt.batch_size).fill_(1).type(torch.cuda.FloatTensor))
 
@@ -67,6 +67,9 @@ for epoch in range(opt.num_epochs):
 
   for step, (images, _) in enumerate(data_loader, 0):
     batch_size = images.size(0)  # batch_size <= opt.batch_size
+    D.zero_grad()
+    P.zero_grad()
+    Q.zero_grad()
 
     ''' P network '''
     z_p = Variable(torch.randn(batch_size, opt.z_dim, 1, 1).type(torch.cuda.FloatTensor))
@@ -87,15 +90,9 @@ for epoch in range(opt.num_epochs):
     loss_q = criterion(output_q, labels_p[:batch_size])
     loss_pq = loss_p+loss_q
 
-    D.zero_grad()
-    P.zero_grad()
-    Q.zero_grad()
-    loss_d.backward()
+    loss_d.backward(retain_variables=True)
     optimizer_d.step()
 
-    D.zero_grad()
-    P.zero_grad()
-    Q.zero_grad()
     loss_pq.backward()
     optimizer_pq.step()
 

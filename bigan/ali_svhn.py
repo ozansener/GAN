@@ -4,7 +4,7 @@
 # https://github.com/IshmaelBelghazi/ALI/blob/master/experiments/ali_svhn.py
 #
 # Author: Yuliang Zou
-
+from __future__ import absolute_import, division, print_function, unicode_literals
 import argparse
 import torch
 import torch.nn as nn
@@ -244,23 +244,23 @@ if __name__ == '__main__':
 	ngpu = 1
 	Gz = _Gz(ngpu)
 	Gz.apply(weights_init)
-	print Gz
+	print(Gz)
 
 	Gx = _Gx(ngpu)
 	Gx.apply(weights_init)
-	print Gx
+	print(Gx)
 
 	D_x = _D_x(ngpu)
 	D_x.apply(weights_init)
-	print D_x
+	print(D_x)
 
 	D_z = _D_z(ngpu)
 	D_z.apply(weights_init)
-	print D_z
+	print(D_z)
 
 	D = _D(ngpu)
 	D.apply(weights_init)
-	print D
+	print(D)
 
 	criterion = nn.BCELoss()
 
