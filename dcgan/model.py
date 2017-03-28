@@ -85,5 +85,4 @@ class Discriminator(nn.Module):
     if isinstance(x.data, torch.cuda.FloatTensor) and self.num_gpus > 1:
       gpu_ids = range(self.num_gpus)
     output = nn.parallel.data_parallel(self.inference, x, gpu_ids)
-    print(output.size())
     return output.view(-1, 1)
