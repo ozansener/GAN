@@ -97,8 +97,7 @@ for epoch in range(opt.num_epochs):
 
     info = stats.update(batch_size, loss_d=loss_d.data[0], loss_pq=loss_pq.data[0])
     if opt.print_every > 0 and step%opt.print_every == 0:
-      logger.info('epoch {}/{}, step {}/{}: {}'
-                  .format(epoch, opt.num_epochs, step, len(data_loader), info))
+      logger.info('epoch {}/{}, step {}/{}: {}'.format(epoch, opt.num_epochs, step, len(data_loader), info))
 
     if step == 0:
       torchvision.utils.save_image(images, '%s/real_samples.png'%opt.ckpt_path)

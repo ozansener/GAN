@@ -29,10 +29,8 @@ class Statistics(object):
   def update(self, n, **kwargs):
     info = ''
     for key in kwargs:
-      print(key)
       self.meters[key].update(kwargs[key], n)
       info += '{key}={loss.val:.4f}, avg {key}={loss.avg:.4f}, '.format(key=key, loss=self.meters[key])
-    assert False
     return info[:-2]
 
 
