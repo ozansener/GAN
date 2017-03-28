@@ -157,5 +157,6 @@ class Discriminator(nn.Module):
         m.bias.data.zero_()
 
   def forward(self, x, z):
+    # TODO: data parallel
     output = torch.cat((self.inference_x(x), self.inference_z(z)), 1)
     return self.inference_joint(output)
