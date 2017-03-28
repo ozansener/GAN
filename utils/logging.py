@@ -22,6 +22,7 @@ class AverageMeter(object):
 
 class Statistics(object):
   def __init__(self, names):
+    self.names = names
     self.meters = {}
     for name in names:
       self.meters.update({name: AverageMeter()})
@@ -33,20 +34,28 @@ class Statistics(object):
       info += '{key}={loss.val:.4f}, avg {key}={loss.avg:.4f}, '.format(key=key, loss=self.meters[key])
     return info[:-2]
 
+  def summary(self):
+    info = ''
+    for name in self.names:
+      info += 'avg {}={loss:.4f}, '.format(name, loss=self.meters[name].avg)
+    return info[:-2]
 
-def get_logger(path):
-  logger = logging.getLogger()
-  logger.setLevel(logging.INFO)
-  formatter = logging.Formatter('%(asctime)s %(message)s', datefmt='%Y-%m-%d,%H:%M:%S')
 
-  fh = logging.FileHandler(os.path.join(path, 'debug.log'))
-  fh.setLevel(logging.INFO)
-  fh.setFormatter(formatter)
-  logger.addHandler(fh)
+class Logger(object):
+  def __init__(self, path):
+    self.logger = logging.getLogger()
+    self.logger.setLevel(logging.INFO)
+    formatter = logging.Formatter('%(asctime)s %(message)s', datefmt='%Y-%m-%d,%H:%M:%S')
 
-  ch = logging.StreamHandler(sys.stdout)
-  ch.setLevel(logging.INFO)
-  ch.setFormatter(formatter)
-  logger.addHandler(ch)
+    fh = logging.FileHandler(os.path.join(path, 'debug.log'))
+    fh.setLevel(logging.INFO)
+    fh.setFormatter(formatter)
+    self.logger.addHandler(fh)
 
-  return logger
+    ch = logging.StreamHandler(sys.stdout)
+    ch.setLevel(logging.INFO)
+    ch.setFormatter(formatter)
+    self.logger.addHandler(ch)
+
+  def log(self, info):
+    self.logger.info(info)

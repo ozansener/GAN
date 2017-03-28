@@ -16,8 +16,9 @@ from utils import logging
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--dataset_path', type=str, default='/home/alan/datable/cifar10')
+# parser.add_argument('--dataset_path', type=str, default='/vision/group/cifar10')
 parser.add_argument('--num_workers', type=int, default=20)
-parser.add_argument('--batch_size', type=int, default=64)
+parser.add_argument('--batch_size', type=int, default=128)
 parser.add_argument('--image_size', type=int, default=32)
 parser.add_argument('--in_channels', type=int, default=3)
 parser.add_argument('--z_dim', type=int, default=256)
@@ -27,11 +28,12 @@ parser.add_argument('--beta1', type=float, default=0.5)
 parser.add_argument('--num_gpus', type=int, default=2)
 parser.add_argument('--load_ckpt', type=bool, default=False)
 parser.add_argument('--ckpt_path', type=str, default='/home/alan/datable/cifar10/ckpt_alan')
+# parser.add_argument('--ckpt_path', type=str, default='/vision/group/cifar10/ckpt_alan')
 parser.add_argument('--print_every', type=int, default=50)
 
 opt = parser.parse_args()
 os.makedirs(opt.ckpt_path, exist_ok=True)
-logger = logging.get_logger(opt.ckpt_path)
+logger = logging.Logger(opt.ckpt_path)
 opt.seed = 1
 torch.manual_seed(opt.seed)
 torch.cuda.manual_seed(opt.seed)
@@ -62,7 +64,6 @@ labels_q = Variable(torch.zeros(opt.batch_size).fill_(1).type(torch.cuda.FloatTe
 
 for epoch in range(opt.num_epochs):
   stats = logging.Statistics(['loss_d', 'loss_pq'])
-  images, batch_size = None, None
 
   for step, (images, _) in enumerate(data_loader, 0):
     batch_size = images.size(0)  # batch_size <= opt.batch_size
@@ -70,18 +71,19 @@ for epoch in range(opt.num_epochs):
     P.zero_grad()
     Q.zero_grad()
 
-    ''' P network '''
+    # P network
     z_p = Variable(torch.randn(batch_size, opt.z_dim, 1, 1).type(torch.cuda.FloatTensor))
     x_p = P(z_p)
 
-    ''' Q network '''
+    # Q network
     x_q = Variable(images.type(torch.cuda.FloatTensor))
     z_q = Q(x_q)
 
-    ''' D network '''
+    # D network
     output_p = D(x_p, z_p)
     output_q = D(x_q, z_q)
 
+    # loss & back propagation
     loss_dp = criterion(output_p, labels_p[:batch_size])
     loss_dq = criterion(output_q, labels_q[:batch_size])
     loss_d = loss_dp+loss_dq
@@ -91,18 +93,21 @@ for epoch in range(opt.num_epochs):
 
     loss_d.backward(retain_variables=True)
     optimizer_d.step()
-
     loss_pq.backward()
     optimizer_pq.step()
 
+    # logging
     info = stats.update(batch_size, loss_d=loss_d.data[0], loss_pq=loss_pq.data[0])
     if opt.print_every > 0 and step%opt.print_every == 0:
-      logger.info('epoch {}/{}, step {}/{}: {}'.format(epoch, opt.num_epochs, step, len(data_loader), info))
+      logger.log('epoch {}/{}, step {}/{}: {}'.format(epoch, opt.num_epochs, step, len(data_loader), info))
 
     if step == 0:
       torchvision.utils.save_image(images, '%s/real_samples.png'%opt.ckpt_path)
       fake = P(fixed_z[:batch_size])
       torchvision.utils.save_image(fake.data, '%s/fake_samples_epoch_%03d.png'%(opt.ckpt_path, epoch))
+
+  info = stats.summary()
+  logger.log('[Summary] epoch {}/{}: {}'.format(epoch, opt.num_epochs, info))
 
   torch.save(D.state_dict(), os.path.join(opt.ckpt_path, 'D.pth'))
   torch.save(P.state_dict(), os.path.join(opt.ckpt_path, 'P.pth'))

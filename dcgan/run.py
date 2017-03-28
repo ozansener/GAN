@@ -30,7 +30,7 @@ parser.add_argument('--print_every', type=int, default=50)
 
 opt = parser.parse_args()
 os.makedirs(opt.ckpt_path, exist_ok=True)
-logger = logging.get_logger(opt.ckpt_path)
+logger = logging.Logger(opt.ckpt_path)
 opt.seed = 1
 torch.manual_seed(opt.seed)
 torch.cuda.manual_seed(opt.seed)
@@ -58,9 +58,7 @@ labels_real = Variable(torch.zeros(opt.batch_size).fill_(1).type(torch.cuda.Floa
 labels_fake = Variable(torch.zeros(opt.batch_size).fill_(0).type(torch.cuda.FloatTensor))
 
 for epoch in range(opt.num_epochs):
-  losses_d = logging.AverageMeter()
-  losses_g = logging.AverageMeter()
-  images, batch_size = None, None
+  stats = logging.Statistics(['loss_d', 'loss_g'])
 
   for step, (images, _) in enumerate(data_loader, 0):
     batch_size = images.size(0)  # batch_size <= opt.batch_size
@@ -94,21 +92,20 @@ for epoch in range(opt.num_epochs):
     # back propagation
     optimizer_g.step()
 
-    losses_d.update(loss_d.data[0], batch_size)
-    losses_g.update(loss_g.data[0], batch_size)
-
+    # logging
+    info = stats.update(batch_size, loss_d=loss_d.data[0], loss_g=loss_g.data[0])
     if opt.print_every > 0 and step%opt.print_every == 0:
-      logger.info('epoch {}/{}, step {}/{}: '
-                  'loss_d={loss_d.val:.4f}, avg loss_d={loss_d.avg:.4f}, '
-                  'loss_g={loss_g.val:.4f}, avg loss_g={loss_g.avg:.4f}, '
-                  'D(x): {D_x:.4f}, D(G(z)): {D_g_z1:.4f}/{D_g_z2:.4f}'
-                  .format(epoch, opt.num_epochs, step, len(data_loader), loss_d=losses_d, loss_g=losses_g,
-                          D_x=D_x, D_g_z1=D_g_z1, D_g_z2=D_g_z2))
+      logger.log('epoch {}/{}, step {}/{}: {}, '
+                 'D(x): {D_x:.4f}, D(G(z)): {D_g_z1:.4f}/{D_g_z2:.4f}'
+                 .format(epoch, opt.num_epochs, step, len(data_loader), info, D_x=D_x, D_g_z1=D_g_z1, D_g_z2=D_g_z2))
 
     if step == 0:
       torchvision.utils.save_image(images, '%s/real_samples.png'%opt.ckpt_path)
       fake = G(fixed_z[:batch_size])
       torchvision.utils.save_image(fake.data, '%s/fake_samples_epoch_%03d.png'%(opt.ckpt_path, epoch))
+
+  info = stats.summary()
+  logger.log('[Summary] epoch {}/{}: {}'.format(epoch, opt.num_epochs, info))
 
   torch.save(D.state_dict(), os.path.join(opt.ckpt_path, 'D.pth'))
   torch.save(G.state_dict(), os.path.join(opt.ckpt_path, 'G.pth'))
