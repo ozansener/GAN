@@ -146,6 +146,7 @@ class Discriminator(nn.Module):
       # state dim: 1024 x 1 x 1 (no bn)
       nn.Conv2d(1024, 1, 1, stride=1, bias=False),
       # output dim: 1 x 1 x 1
+      nn.Sigmoid()
     )
 
     # TODO: fix init
