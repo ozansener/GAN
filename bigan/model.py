@@ -3,6 +3,9 @@ import torch
 import torch.nn as nn
 
 class P(nn.Module):
+  """
+  generator net (decoder) P(x|z)
+  """
   def __init__(self, opt):
     super(P, self).__init__()
     self.num_gpus = opt.num_gpus
@@ -52,6 +55,9 @@ class P(nn.Module):
 
 
 class Q(nn.Module):
+  """
+  inference net (encoder) Q(z|x)
+  """
   def __init__(self, opt):
     super(Q, self).__init__()
     self.num_gpus = opt.num_gpus
