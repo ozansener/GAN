@@ -1,6 +1,7 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 import argparse
 import os
+import shutil
 import torch.backends.cudnn as cudnn
 import torch.nn as nn
 import torch.optim as optim
@@ -15,26 +16,40 @@ from utils import logging
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--dataset_path', type=str, default='/home/alan/datable/cifar10')
-parser.add_argument('--num_workers', type=int, default=20)
-parser.add_argument('--batch_size', type=int, default=64)
 parser.add_argument('--image_size', type=int, default=64)
 parser.add_argument('--in_channels', type=int, default=3)
-parser.add_argument('--z_dim', type=int, default=100)
-parser.add_argument('--num_epochs', type=int, default=100)
-parser.add_argument('--lr', type=float, default=2e-4)
-parser.add_argument('--beta1', type=float, default=0.5)
 parser.add_argument('--num_gpus', type=int, default=2)
+parser.add_argument('--num_workers', type=int, default=20)
+
+# logging
+parser.add_argument('--clean_ckpt', type=bool, default=True)
 parser.add_argument('--load_ckpt', type=bool, default=False)
 parser.add_argument('--ckpt_path', type=str, default='/home/alan/datable/cifar10/ckpt')
 parser.add_argument('--print_every', type=int, default=50)
 
+# hyperparameters
+parser.add_argument('--num_epochs', type=int, default=100)
+parser.add_argument('--batch_size', type=int, default=64)
+parser.add_argument('--z_dim', type=int, default=100)
+parser.add_argument('--lr_adam', type=float, default=2e-4)
+parser.add_argument('--lr_rmsprop', type=float, default=2e-4)
+parser.add_argument('--beta1', type=float, default=0.5, help='for adam')
+parser.add_argument('--slope', type=float, default=0.2, help='for leaky ReLU')
+parser.add_argument('--std', type=float, default=0.02, help='for weight')
+parser.add_argument('--dropout', type=float, default=0.2)
+parser.add_argument('--clamp', type=float, default=1e-2)
+parser.add_argument('--wasserstein', type=bool, default=False)
+
 opt = parser.parse_args()
+if opt.clean_ckpt:
+  shutil.rmtree(opt.ckpt_path)
 os.makedirs(opt.ckpt_path, exist_ok=True)
 logger = logging.Logger(opt.ckpt_path)
 opt.seed = 1
 torch.manual_seed(opt.seed)
 torch.cuda.manual_seed(opt.seed)
 cudnn.benchmark = True
+EPS = 1e-12
 
 transform = transforms.Compose([transforms.Scale(opt.image_size),
                                 transforms.ToTensor(),
@@ -50,12 +65,14 @@ if opt.load_ckpt:
   G.load_state_dict(torch.load(os.path.join(opt.ckpt_path, 'G.pth')))
 
 criterion = nn.BCELoss().cuda()
-optimizer_d = optim.Adam(D.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
-optimizer_g = optim.Adam(G.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
+if opt.wasserstein:
+  optimizer_d = optim.RMSprop(D.parameters(), lr=opt.lr_rmsprop)
+  optimizer_g = optim.RMSprop(G.parameters(), lr=opt.lr_rmsprop)
+else:
+  optimizer_d = optim.Adam(D.parameters(), lr=opt.lr_adam, betas=(opt.beta1, 0.999))
+  optimizer_g = optim.Adam(G.parameters(), lr=opt.lr_adam, betas=(opt.beta1, 0.999))
 
 fixed_z = Variable(torch.randn(opt.batch_size, opt.z_dim, 1, 1).type(torch.cuda.FloatTensor))
-labels_real = Variable(torch.zeros(opt.batch_size).fill_(1).type(torch.cuda.FloatTensor))
-labels_fake = Variable(torch.zeros(opt.batch_size).fill_(0).type(torch.cuda.FloatTensor))
 
 for epoch in range(opt.num_epochs):
   stats = logging.Statistics(['loss_d', 'loss_g'])
@@ -68,28 +85,40 @@ for epoch in range(opt.num_epochs):
     ''' update D network: maximize log(D(x)) + log(1 - D(G(z))) '''
     # train with real
     x_real = Variable(images.type(torch.cuda.FloatTensor))
-    output = D(x_real)
-    loss_d_real = criterion(output, labels_real[:batch_size])
-    loss_d_real.backward()
-    D_x = output.data.mean()
+    output_d_real = D(x_real)
+    D_x = output_d_real.data.mean()
     # train with fake
     z = Variable(torch.randn(batch_size, opt.z_dim, 1, 1).type(torch.cuda.FloatTensor))
     x_fake = G(z)
-    output = D(x_fake.detach())
-    loss_d_fake = criterion(output, labels_fake[:batch_size])
-    loss_d_fake.backward()
-    D_g_z1 = output.data.mean()
-    # back propagation
-    loss_d = loss_d_real+loss_d_fake
+    output_d_fake = D(x_fake.detach())
+    D_g_z1 = output_d_fake.data.mean()
+
+    # loss & back propagation
+    if opt.wasserstein:
+      loss_d = -torch.mean(output_d_real)+torch.mean(output_d_fake)
+    else:
+      loss_d = -torch.mean(torch.log(output_d_real+EPS)+torch.log(1-output_d_fake+EPS))
+    loss_d.backward()
     optimizer_d.step()
+
+    if opt.wasserstein:
+      for p in D.parameters():
+        p.data.clamp_(-opt.clamp, opt.clamp)
 
     ''' update G network: maximize log(D(G(z))) '''
     # train with D's prediction
     output = D(x_fake)
-    loss_g = criterion(output, labels_real[:batch_size])
-    loss_g.backward()
     D_g_z2 = output.data.mean()
-    # back propagation
+    # loss & back propagation
+    if opt.wasserstein:
+      loss_g = -torch.mean(output)
+    else:
+      # Minimax game: minimize log(1 - D(G(z))) -- Seems not work
+      # loss_g = torch.mean(torch.log(1-output+EPS))
+      # Non-saturating game: maximize log(D(G(z)))
+      loss_g = -torch.mean(torch.log(output+EPS))
+
+    loss_g.backward()
     optimizer_g.step()
 
     # logging
