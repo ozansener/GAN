@@ -63,7 +63,7 @@ if opt.load_ckpt:
 
 if opt.wasserstein:
   optimizer_d = optim.RMSprop(D.parameters(), lr=opt.lr_rmsprop)
-  optimizer_pq = optim.RMSprop(itertools.chain(P.parameters(), Q.parameters()), lr=opt.lr_rmsprop)  # TODO
+  optimizer_pq = optim.RMSprop(itertools.chain(P.parameters(), Q.parameters()), lr=opt.lr_rmsprop)
 else:
   optimizer_d = optim.Adam(D.parameters(), lr=opt.lr_adam, betas=(opt.beta1, 0.999))
   optimizer_pq = optim.Adam(itertools.chain(P.parameters(), Q.parameters()), lr=opt.lr_adam, betas=(opt.beta1, 0.999))
@@ -116,7 +116,7 @@ for epoch in range(opt.num_epochs):
       fake = P(fixed_z[:batch_size])
       torchvision.utils.save_image(fake.data, '%s/fake_samples_epoch_%03d.png'%(opt.ckpt_path, epoch))
 
-  logger.log('[Summary] epoch {}/{}:\t{}'.format(epoch, opt.num_epochs, stats.summary()))
+  logger.log('[Summary] epoch {}/{}:\t{}\n'.format(epoch, opt.num_epochs, stats.summary()))
 
   torch.save(D.state_dict(), os.path.join(opt.ckpt_path, 'D.pth'))
   torch.save(P.state_dict(), os.path.join(opt.ckpt_path, 'P.pth'))
