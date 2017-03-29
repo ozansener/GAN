@@ -142,7 +142,7 @@ class Discriminator(nn.Module):
       nn.BatchNorm2d(512),
       nn.LeakyReLU(opt.std, inplace=True),
       nn.Dropout2d(p=opt.dropout)
-      # state dim: 512 x 1 x 1
+      # output dim: 512 x 1 x 1
     )
 
     self.inference_z = nn.Sequential(
