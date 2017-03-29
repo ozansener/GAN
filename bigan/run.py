@@ -33,7 +33,7 @@ parser.add_argument('--clean_ckpt', type=bool, default=True)
 parser.add_argument('--load_ckpt', type=bool, default=False)
 parser.add_argument('--ckpt_path', type=str, default='/home/alan/datable/cifar10/ckpt_alan')
 # parser.add_argument('--ckpt_path', type=str, default='/vision/group/cifar10/ckpt_alan')
-parser.add_argument('--print_every', type=int, default=50)
+parser.add_argument('--print_every', type=int, default=1)
 
 opt = parser.parse_args()
 if opt.clean_ckpt:
@@ -63,7 +63,7 @@ if opt.load_ckpt:
 
 if opt.wasserstein:
   optimizer_d = optim.RMSprop(D.parameters(), lr=opt.lr_rmsprop)
-  optimizer_pq = optim.RMSprop(itertools.chain(P.parameters(), Q.parameters()), lr=opt.lr_rmsprop)
+  optimizer_pq = optim.RMSprop(itertools.chain(P.parameters(), Q.parameters()), lr=opt.lr_rmsprop)  # TODO
 else:
   optimizer_d = optim.Adam(D.parameters(), lr=opt.lr_adam, betas=(opt.beta1, 0.999))
   optimizer_pq = optim.Adam(itertools.chain(P.parameters(), Q.parameters()), lr=opt.lr_adam, betas=(opt.beta1, 0.999))
@@ -99,14 +99,26 @@ for epoch in range(opt.num_epochs):
       loss_d = -torch.mean(torch.log(output_q+EPS)+torch.log(1-output_p+EPS))
       loss_pq = -torch.mean(torch.log(output_p+EPS)+torch.log(1-output_q+EPS))
 
-    loss_d.backward(retain_variables=True)
-    optimizer_d.step()
-    loss_pq.backward()
-    optimizer_pq.step()
+    if step != 0 and (step+1)%6 == 0:
+      print('pq')
+      loss_pq.backward()
+      optimizer_pq.step()
+    else:
+      print('d')
+      loss_d.backward()
+      optimizer_d.step()
+      if opt.wasserstein:
+        for p in D.parameters():
+          p.data.clamp_(-opt.clamp, opt.clamp)
 
-    if opt.wasserstein:
-      for p in D.parameters():
-        p.data.clamp_(-opt.clamp, opt.clamp)
+    # loss_d.backward(retain_variables=True)
+    # optimizer_d.step()
+    # loss_pq.backward()
+    # optimizer_pq.step()
+    #
+    # if opt.wasserstein:
+    #   for p in D.parameters():
+    #     p.data.clamp_(-opt.clamp, opt.clamp)
 
     # logging
     info = stats.update(batch_size, loss_d=loss_d.data[0], loss_pq=loss_pq.data[0])

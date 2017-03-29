@@ -158,11 +158,11 @@ class Discriminator(nn.Module):
       nn.Dropout2d(p=0.2),
       nn.LeakyReLU(0.01, inplace=True),
       # state dim: 1024 x 1 x 1 (no bn)
-      nn.Conv2d(1024, 1, 1, stride=1, bias=False),
-      nn.Dropout2d(p=0.2),
+      nn.Conv2d(1024, 1, 1, stride=1, bias=False)
       # output dim: 1 x 1 x 1
     )
     if not opt.wasserstein:
+      self.inference_joint.add_module('7', nn.Dropout2d(p=0.2))
       self.inference_joint.add_module('8', nn.Sigmoid())
 
     self.reset_parameters()
