@@ -36,8 +36,8 @@ parser.add_argument('--z_dim', type=int, default=256)
 parser.add_argument('--lr_adam', type=float, default=1e-4)
 parser.add_argument('--lr_rmsprop', type=float, default=5e-5)
 parser.add_argument('--beta1', type=float, default=0.5, help='for adam')
-parser.add_argument('--slope', type=float, default=0.01, help='for leaky ReLU')
-parser.add_argument('--std', type=float, default=0.01, help='for weight')
+parser.add_argument('--slope', type=float, default=1e-2, help='for leaky ReLU')
+parser.add_argument('--std', type=float, default=0.02, help='for weight')
 parser.add_argument('--dropout', type=float, default=0.2)
 parser.add_argument('--clamp', type=float, default=1e-2)
 parser.add_argument('--wasserstein', type=bool, default=False)
@@ -99,7 +99,7 @@ for epoch in range(opt.num_epochs):
     # loss & back propagation
     if opt.wasserstein:
       loss_d = -torch.mean(output_q)+torch.mean(output_p)
-      loss_pq = -torch.mean(output_p)
+      loss_pq = -torch.mean(output_p)+torch.mean(output_q)
     else:
       loss_d = -torch.mean(torch.log(output_q+EPS)+torch.log(1-output_p+EPS))
       loss_pq = -torch.mean(torch.log(output_p+EPS)+torch.log(1-output_q+EPS))

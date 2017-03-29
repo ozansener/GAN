@@ -12,27 +12,27 @@ class P(nn.Module):
 
     self.inference = nn.Sequential(
       # input dim: z_dim x 1 x 1
-      nn.ConvTranspose2d(opt.z_dim, 256, 4, stride=1, bias=False),
+      nn.ConvTranspose2d(opt.z_dim, 256, 4, stride=1, bias=True),
       nn.BatchNorm2d(256),
       nn.LeakyReLU(opt.slope, inplace=True),
-      # state dim: 256 x 4 x 4
-      nn.ConvTranspose2d(256, 128, 4, stride=2, bias=False),
+      # state dim:   256 x 4 x 4
+      nn.ConvTranspose2d(256, 128, 4, stride=2, bias=True),
       nn.BatchNorm2d(128),
       nn.LeakyReLU(opt.slope, inplace=True),
       # state dim: 128 x 10 x 10
-      nn.ConvTranspose2d(128, 64, 4, stride=1, bias=False),
+      nn.ConvTranspose2d(128, 64, 4, stride=1, bias=True),
       nn.BatchNorm2d(64),
       nn.LeakyReLU(opt.slope, inplace=True),
       # state dim: 64 x 13 x 13
-      nn.ConvTranspose2d(64, 32, 4, stride=2, bias=False),
+      nn.ConvTranspose2d(64, 32, 4, stride=2, bias=True),
       nn.BatchNorm2d(32),
       nn.LeakyReLU(opt.slope, inplace=True),
       # state dim: 32 x 28 x 28
-      nn.ConvTranspose2d(32, 32, 5, stride=1, bias=False),
+      nn.ConvTranspose2d(32, 32, 5, stride=1, bias=True),
       nn.BatchNorm2d(32),
       nn.LeakyReLU(opt.slope, inplace=True),
       # state dim: 32 x 32 x 32
-      nn.Conv2d(32, opt.in_channels, 1, stride=1, bias=False),
+      nn.Conv2d(32, opt.in_channels, 1, stride=1, bias=True),
       nn.Tanh()
       # output dim: in_channels x 32 x 32
     )
@@ -64,31 +64,31 @@ class Q(nn.Module):
 
     self.inference = nn.Sequential(
       # input dim: in_channels x 32 x 32
-      nn.Conv2d(3, 32, 5, stride=1, bias=False),
+      nn.Conv2d(3, 32, 5, stride=1, bias=True),
       nn.BatchNorm2d(32),
       nn.LeakyReLU(opt.slope, inplace=True),
       # state dim: 32 x 28 x 28
-      nn.Conv2d(32, 64, 4, stride=2, bias=False),
+      nn.Conv2d(32, 64, 4, stride=2, bias=True),
       nn.BatchNorm2d(64),
       nn.LeakyReLU(opt.slope, inplace=True),
       # state dim: 64 x 13 x 13
-      nn.Conv2d(64, 128, 4, stride=1, bias=False),
+      nn.Conv2d(64, 128, 4, stride=1, bias=True),
       nn.BatchNorm2d(128),
       nn.LeakyReLU(opt.slope, inplace=True),
       # state dim: 128 x 10 x 10
-      nn.Conv2d(128, 256, 4, stride=2, bias=False),
+      nn.Conv2d(128, 256, 4, stride=2, bias=True),
       nn.BatchNorm2d(256),
       nn.LeakyReLU(opt.slope, inplace=True),
       # state dim: 256 x 4 x 4
-      nn.Conv2d(256, 512, 4, stride=1, bias=False),
+      nn.Conv2d(256, 512, 4, stride=1, bias=True),
       nn.BatchNorm2d(512),
       nn.LeakyReLU(opt.slope, inplace=True),
       # state dim: 512 x 1 x 1
-      nn.Conv2d(512, 512, 1, stride=1, bias=False),
+      nn.Conv2d(512, 512, 1, stride=1, bias=True),
       nn.BatchNorm2d(512),
       nn.LeakyReLU(opt.slope, inplace=True),
       # state dim: 512 x 1 x 1
-      nn.Conv2d(512, opt.z_dim, 1, stride=1, bias=False)
+      nn.Conv2d(512, opt.z_dim, 1, stride=1, bias=True)
       # output dim: opt.z_dim x 1 x 1
     )
 
@@ -118,51 +118,60 @@ class Discriminator(nn.Module):
     self.opt = opt
 
     self.inference_x = nn.Sequential(
-      # input dim: in_channels x 32 x 32 (no bn)
-      nn.Conv2d(3, 32, 5, stride=1, bias=False),
-      nn.LeakyReLU(opt.slope, inplace=True),
+      # input dim: in_channels x 32 x 32
+      nn.Conv2d(3, 32, 5, stride=1, bias=True),
+      nn.LeakyReLU(opt.std, inplace=True),
+      nn.Dropout2d(p=opt.dropout),
       # state dim: 32 x 28 x 28
-      nn.Conv2d(32, 64, 4, stride=2, bias=False),
+      nn.Conv2d(32, 64, 4, stride=2, bias=True),
       nn.BatchNorm2d(64),
-      nn.LeakyReLU(opt.slope, inplace=True),
+      nn.LeakyReLU(opt.std, inplace=True),
+      nn.Dropout2d(p=opt.dropout),
       # state dim: 64 x 13 x 13
-      nn.Conv2d(64, 128, 4, stride=1, bias=False),
+      nn.Conv2d(64, 128, 4, stride=1, bias=True),
       nn.BatchNorm2d(128),
-      nn.LeakyReLU(opt.slope, inplace=True),
+      nn.LeakyReLU(opt.std, inplace=True),
+      nn.Dropout2d(p=opt.dropout),
       # state dim: 128 x 10 x 10
-      nn.Conv2d(128, 256, 4, stride=2, bias=False),
+      nn.Conv2d(128, 256, 4, stride=2, bias=True),
       nn.BatchNorm2d(256),
-      nn.LeakyReLU(opt.slope, inplace=True),
+      nn.LeakyReLU(opt.std, inplace=True),
+      nn.Dropout2d(p=opt.dropout),
       # state dim: 256 x 4 x 4
-      nn.Conv2d(256, 512, 4, stride=1, bias=False),
+      nn.Conv2d(256, 512, 4, stride=1, bias=True),
       nn.BatchNorm2d(512),
-      nn.LeakyReLU(opt.slope, inplace=True)
+      nn.LeakyReLU(opt.std, inplace=True),
+      nn.Dropout2d(p=opt.dropout)
       # state dim: 512 x 1 x 1
     )
 
     self.inference_z = nn.Sequential(
-      # input dim: z_dim x 1 x 1 (no bn)
-      nn.Conv2d(opt.z_dim, 512, 1, stride=1, bias=False),
-      nn.LeakyReLU(opt.slope, inplace=True),
-      # state dim: 512 x 1 x 1 (no bn)
-      nn.Conv2d(512, 512, 1, stride=1, bias=False),
-      nn.LeakyReLU(opt.slope, inplace=True)
+      # input dim: z_dim x 1 x 1
+      nn.Conv2d(opt.z_dim, 512, 1, stride=1, bias=True),
+      nn.LeakyReLU(opt.std, inplace=True),
+      nn.Dropout2d(p=opt.dropout),
+      # state dim: 512 x 1 x 1
+      nn.Conv2d(512, 512, 1, stride=1, bias=True),
+      nn.LeakyReLU(opt.std, inplace=True),
+      nn.Dropout2d(p=opt.dropout)
       # output dim: 512 x 1 x 1
     )
 
     self.inference_joint = nn.Sequential(
-      # input dim: 1024 x 1 x 1 (no bn)
-      nn.Conv2d(1024, 1024, 1, stride=1, bias=False),
-      nn.LeakyReLU(opt.slope, inplace=True),
-      # state dim: 1024 x 1 x 1 (no bn)
-      nn.Conv2d(1024, 1024, 1, stride=1, bias=False),
-      nn.LeakyReLU(opt.slope, inplace=True),
-      # state dim: 1024 x 1 x 1 (no bn)
-      nn.Conv2d(1024, 1, 1, stride=1, bias=False)
+      # input dim: 1024 x 1 x 1
+      nn.Conv2d(1024, 1024, 1, stride=1, bias=True),
+      nn.LeakyReLU(opt.std, inplace=True),
+      nn.Dropout2d(p=opt.dropout),
+      # state dim: 1024 x 1 x 1
+      nn.Conv2d(1024, 1024, 1, stride=1, bias=True),
+      nn.LeakyReLU(opt.std, inplace=True),
+      nn.Dropout2d(p=opt.dropout),
+      # state dim: 1024 x 1 x 1
+      nn.Conv2d(1024, 1, 1, stride=1, bias=True)
       # output dim: 1 x 1 x 1
     )
     if not opt.wasserstein:
-      self.inference_joint.add_module('7', nn.Sigmoid())
+      self.inference_joint.add_module('sigmoid', nn.Sigmoid())
 
     self.reset_parameters()
 
