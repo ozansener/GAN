@@ -38,7 +38,7 @@ class Statistics(object):
     info = ''
     for name in self.names:
       info += 'avg {key}={loss:.4f}, '.format(key=name, loss=self.meters[name].avg)
-    return info[:-2]
+    return info[:-2]+'\n'
 
 
 class Logger(object):

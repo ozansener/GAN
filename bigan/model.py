@@ -4,7 +4,7 @@ import torch.nn as nn
 
 class P(nn.Module):
   """
-  generator net (decoder) P(x|z)
+  Generator net (decoder, fake) P(x|z)
   """
   def __init__(self, opt):
     super(P, self).__init__()
@@ -56,7 +56,7 @@ class P(nn.Module):
 
 class Q(nn.Module):
   """
-  inference net (encoder) Q(z|x)
+  Inference net (encoder, real) Q(z|x)
   """
   def __init__(self, opt):
     super(Q, self).__init__()
@@ -110,6 +110,9 @@ class Q(nn.Module):
 
 
 class Discriminator(nn.Module):
+  """
+  Discriminator net D(x, z)
+  """
   def __init__(self, opt):
     super(Discriminator, self).__init__()
     self.num_gpus = opt.num_gpus
