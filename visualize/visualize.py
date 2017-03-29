@@ -6,7 +6,7 @@ from PIL import Image, ImageFont, ImageDraw
 
 
 def main():
-  images_dir = '/Users/alan/Documents/research/nips2017/bigan_results1'
+  images_dir = '/Users/alan/Documents/research/nips2017/dcgan_results1'
   font_size = 30
 
   images = []
