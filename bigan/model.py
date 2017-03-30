@@ -32,9 +32,9 @@ class P(nn.Module):
       nn.BatchNorm2d(32),
       nn.LeakyReLU(opt.slope, inplace=True),
       # state dim: 32 x 32 x 32
-      nn.Conv2d(32, opt.in_channels, 1, stride=1, bias=True),
+      nn.Conv2d(32, opt.num_channels, 1, stride=1, bias=True),
       nn.Tanh()
-      # output dim: in_channels x 32 x 32
+      # output dim: num_channels x 32 x 32
     )
 
     self.reset_parameters()
@@ -43,6 +43,7 @@ class P(nn.Module):
     for m in self.modules():
       if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
         m.weight.data.normal_(0.0, self.opt.std)
+        m.bias.data.zero_()
       elif isinstance(m, nn.BatchNorm2d):
         m.weight.data.normal_(1.0, self.opt.std)
         m.bias.data.zero_()
@@ -63,7 +64,7 @@ class Q(nn.Module):
     self.opt = opt
 
     self.inference = nn.Sequential(
-      # input dim: in_channels x 32 x 32
+      # input dim: num_channels x 32 x 32
       nn.Conv2d(3, 32, 5, stride=1, bias=True),
       nn.BatchNorm2d(32),
       nn.LeakyReLU(opt.slope, inplace=True),
@@ -98,6 +99,7 @@ class Q(nn.Module):
     for m in self.modules():
       if isinstance(m, nn.Conv2d):
         m.weight.data.normal_(0.0, self.opt.std)
+        m.bias.data.zero_()
       elif isinstance(m, nn.BatchNorm2d):
         m.weight.data.normal_(1.0, self.opt.std)
         m.bias.data.zero_()
@@ -118,7 +120,7 @@ class Discriminator(nn.Module):
     self.opt = opt
 
     self.inference_x = nn.Sequential(
-      # input dim: in_channels x 32 x 32
+      # input dim: num_channels x 32 x 32
       nn.Conv2d(3, 32, 5, stride=1, bias=True),
       nn.LeakyReLU(opt.std, inplace=True),
       nn.Dropout2d(p=opt.dropout),
@@ -179,6 +181,7 @@ class Discriminator(nn.Module):
     for m in self.modules():
       if isinstance(m, nn.Conv2d):
         m.weight.data.normal_(0.0, self.opt.std)
+        m.bias.data.zero_()
       elif isinstance(m, nn.BatchNorm2d):
         m.weight.data.normal_(1.0, self.opt.std)
         m.bias.data.zero_()

@@ -18,7 +18,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--dataset_path', type=str, default='/home/alan/datable/cifar10')
 # parser.add_argument('--dataset_path', type=str, default='/vision/group/cifar10')
 parser.add_argument('--image_size', type=int, default=32)
-parser.add_argument('--in_channels', type=int, default=3)
+parser.add_argument('--num_channels', type=int, default=3)
 parser.add_argument('--num_gpus', type=int, default=2)
 parser.add_argument('--num_workers', type=int, default=20)
 

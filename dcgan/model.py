@@ -27,9 +27,9 @@ class Generator(nn.Module):
       nn.BatchNorm2d(ngf),
       nn.ReLU(inplace=True),
       # state dim: ngf x 32 x 32
-      nn.ConvTranspose2d(ngf, opt.in_channels, 4, 2, 1, bias=False),
+      nn.ConvTranspose2d(ngf, opt.num_channels, 4, 2, 1, bias=False),
       nn.Tanh()
-      # output dim: in_channels x 64 x 64
+      # output dim: num_channels x 64 x 64
     )
 
     for m in self.modules():
@@ -52,9 +52,12 @@ class Discriminator(nn.Module):
     self.opt = opt
 
     self.inference = nn.Sequential(
-      # input dim: in_channels x 64 x 64
-      nn.Conv2d(opt.in_channels, ndf, 4, 2, 1, bias=False),
+      # input dim: num_channels x 64 x 64
+      nn.Conv2d(opt.num_channels, ndf, 4, 2, 1, bias=False),
       nn.LeakyReLU(opt.slope, inplace=True),
+      # input dim: num_channels x 64 x 64
+      nn.Conv2d(opt.num_channels, ndf, 4, 2, 1, bias=False),
+      nn.LeakyReLU(0.2, inplace=True),
       # state dim: ndf x 32 x 32
       nn.Conv2d(ndf, ndf*2, 4, 2, 1, bias=False),
       nn.BatchNorm2d(ndf*2),

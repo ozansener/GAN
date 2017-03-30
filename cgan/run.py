@@ -16,15 +16,19 @@ from utils import logging
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--dataset_path', type=str, default='/home/alan/datable/cifar10')
-parser.add_argument('--image_size', type=int, default=64)
+parser.add_argument('--image_size', type=int, default=256)
 parser.add_argument('--num_channels', type=int, default=3)
+parser.add_argument('--z_dim', type=int, default=100)
+parser.add_argument('--num_epochs', type=int, default=100)
+parser.add_argument('--lr', type=float, default=2e-4)
+parser.add_argument('--beta1', type=float, default=0.5)
 parser.add_argument('--num_gpus', type=int, default=2)
 parser.add_argument('--num_workers', type=int, default=20)
 
 # logging
 parser.add_argument('--clean_ckpt', type=bool, default=True)
 parser.add_argument('--load_ckpt', type=bool, default=False)
-parser.add_argument('--ckpt_path', type=str, default='/home/alan/datable/cifar10/ckpt_alan')
+parser.add_argument('--ckpt_path', type=str, default='/home/alan/datable/cifar10/ckpt')
 parser.add_argument('--print_every', type=int, default=50)
 
 # hyperparameters
@@ -38,7 +42,7 @@ parser.add_argument('--slope', type=float, default=0.2, help='for leaky ReLU')
 parser.add_argument('--std', type=float, default=0.02, help='for weight')
 parser.add_argument('--dropout', type=float, default=0.2)
 parser.add_argument('--clamp', type=float, default=1e-2)
-parser.add_argument('--wasserstein', type=bool, default=True)
+parser.add_argument('--wasserstein', type=bool, default=False)
 
 opt = parser.parse_args()
 if opt.clean_ckpt:
@@ -77,7 +81,7 @@ fixed_z = Variable(torch.randn(opt.batch_size, opt.z_dim, 1, 1).type(torch.cuda.
 for epoch in range(opt.num_epochs):
   stats = logging.Statistics(['loss_d', 'loss_g'])
 
-  for step, (images, _) in enumerate(data_loader, 0):
+  for step, (images, labels) in enumerate(data_loader, 0):
     batch_size = images.size(0)  # batch_size <= opt.batch_size
     G.zero_grad()
     D.zero_grad()
@@ -114,9 +118,6 @@ for epoch in range(opt.num_epochs):
     if opt.wasserstein:
       loss_g = -torch.mean(output)
     else:
-      # Minimax game: minimize log(1 - D(G(z))) -- Seems not work
-      # loss_g = torch.mean(torch.log(1-output+EPS))
-      # Non-saturating game: maximize log(D(G(z)))
       loss_g = -torch.mean(torch.log(output+EPS))
     loss_g.backward()
     optimizer_g.step()
