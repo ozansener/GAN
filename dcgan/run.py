@@ -57,8 +57,8 @@ transform = transforms.Compose([transforms.Scale(opt.image_size),
 dataset = dset.CIFAR10(root=opt.dataset_path, train=True, download=False, transform=transform)
 data_loader = torch.utils.data.DataLoader(dataset, batch_size=opt.batch_size, shuffle=True, num_workers=opt.num_workers)
 
-D = model.Discriminator(opt).cuda()
-G = model.Generator(opt).cuda()
+D = torch.nn.DataParallel(model.Discriminator(opt).cuda(), device_ids=range(opt.num_gpus))
+G = torch.nn.DataParallel(model.Generator(opt).cuda(), device_ids=range(opt.num_gpus))
 
 if opt.load_ckpt:
   D.load_state_dict(torch.load(os.path.join(opt.ckpt_path, 'D.pth')))

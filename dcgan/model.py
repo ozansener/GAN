@@ -1,13 +1,10 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
-import torch
 import torch.nn as nn
-import torch.nn.parallel
 
 
 class Generator(nn.Module):
   def __init__(self, opt, ngf=64):
     super(Generator, self).__init__()
-    self.opt = opt
 
     self.inference = nn.Sequential(
       # input dim: z_dim x 1 x 1
@@ -40,24 +37,17 @@ class Generator(nn.Module):
         m.bias.data.zero_()
 
   def forward(self, z):
-    gpu_ids = None
-    if isinstance(z.data, torch.cuda.FloatTensor) and self.opt.num_gpus > 1:
-      gpu_ids = range(self.opt.num_gpus)
-    return nn.parallel.data_parallel(self.inference, z, gpu_ids)
+    return self.inference(z)
 
 
 class Discriminator(nn.Module):
   def __init__(self, opt, ndf=64):
     super(Discriminator, self).__init__()
-    self.opt = opt
 
     self.inference = nn.Sequential(
       # input dim: num_channels x 64 x 64
       nn.Conv2d(opt.num_channels, ndf, 4, 2, 1, bias=False),
       nn.LeakyReLU(opt.slope, inplace=True),
-      # input dim: num_channels x 64 x 64
-      nn.Conv2d(opt.num_channels, ndf, 4, 2, 1, bias=False),
-      nn.LeakyReLU(0.2, inplace=True),
       # state dim: ndf x 32 x 32
       nn.Conv2d(ndf, ndf*2, 4, 2, 1, bias=False),
       nn.BatchNorm2d(ndf*2),
@@ -71,7 +61,7 @@ class Discriminator(nn.Module):
       nn.BatchNorm2d(ndf*8),
       nn.LeakyReLU(opt.slope, inplace=True),
       # state dim: ndf*8 x 4 x 4
-      nn.Conv2d(ndf*8, 1, 4, 1, 0, bias=False),
+      nn.Conv2d(ndf*8, 1, 4, 1, 0, bias=False)
       # output dim: 1 x 1 x 1
     )
     if not opt.wasserstein:
@@ -85,8 +75,4 @@ class Discriminator(nn.Module):
         m.bias.data.zero_()
 
   def forward(self, x):
-    gpu_ids = None
-    if isinstance(x.data, torch.cuda.FloatTensor) and self.opt.num_gpus > 1:
-      gpu_ids = range(self.opt.num_gpus)
-    output = nn.parallel.data_parallel(self.inference, x, gpu_ids)
-    return output.view(-1, 1)
+    return self.inference(x).view(-1, 1)
